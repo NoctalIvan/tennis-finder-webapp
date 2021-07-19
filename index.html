@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+  <link rel="icon" href="./img/icon.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js" integrity="sha512-bZS47S7sPOxkjU/4Bt0zrhEtWx0y0CRkhEp8IckzK+ltifIIE9EMIMTuT/mEzoIMewUINruDBIR/jJnbguonqQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js" integrity="sha512-qTXRIMyZIFb8iQcfjXWCO8+M5Tbc38Qi5WzdPOYZHIlZpzBHG3L3by84BBBOiRGiEb7KKtAOAs5qYdUiZiQNNQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    #app {
+      background-image: url("/img/bg.jpeg");
+      background-size: cover;
+      background-repeat: no-repeat;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <v-app>
+      <v-main>
+        <v-app-bar dark color="green darken-4">
+          <v-toolbar-title>Tennis Finder</v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon @click="onRefresh">
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </v-app-bar>
+
+        <v-container>
+          <v-card>
+            <v-card-title>
+              My stadiums
+            </v-card-title>
+
+            <v-list dense>
+              <v-list-item v-for="stadium in stadiums" :key="stadium">
+                <v-list-item-icon>
+                  <v-icon>mdi-tennis</v-icon>
+                </v-list-item-icon>
+                <v-list-item-content>{{stadium}}</v-list-item-content>
+                <v-list-item-action>
+                  <v-btn icon @click="() => onDeleteStadium(stadium)">
+                    <v-icon color="red lighten-1">mdi-delete</v-icon>
+                  </v-btn>
+                </v-list-item-action>
+              </v-list-item>
+            </v-list>
+
+            <v-select class="mx-4" outlined dense label="add stadium"
+              :items="allStadiums.filter(s => !stadiums.find(s2 => s == s2))"
+              @change="onSelectStadium"
+            />
+          </v-card>
+
+          <v-btn block tile class="my-3" :disabled="isLoading || stadiums.length == 0" @click="onCompute">
+            {{!isLoading ? 'Search courts' : 'Loading...'}}
+          </v-btn>
+
+          <v-card v-if="dispos" style="margin-bottom: 42px!important">
+            <v-card-title>
+              Next available courts
+            </v-card-title>
+
+            <v-range-slider class="mx-3" label="time" min='8' max='21' 
+              v-model="times" 
+              ticks="always"
+              :hide-details="false"
+              :hint="times[0] + 'h - ' + times[1] + 'h'">
+            </v-range-slider>
+
+            <div class="mx-3">
+              <v-btn class="ma-1" v-for="(weekDay, index) in allWeekDays" icon :key="weekDay"
+                :color="selectedDay == index ? 'green' : 'grey'"
+                @click="() => selectedDay = index">
+                {{weekDay}}
+              </v-btn>
+            </div>
+
+            <v-list two-line>
+              <v-list-item v-for="dispo of selectedDispos">
+                <v-list-item-content>
+                  <v-list-item-title>{{dispo.stadium}} / {{dispo.timeString}}</v-list-item-title>
+                  <v-list-item-subtitle>Courts {{
+                    dispo.free.map((f, i) => ({f, i})).filter(f => f.f).map(f => f.i+1).join(', ')
+                  }}</v-list-item-subtitle>
+                </v-list-item-content>
+
+                <v-list-item-action>
+                  <v-btn icon link :href="'https://tennis.paris.fr/tennis/jsp/site/Portal.jsp?page=recherche&view=planning&name_tennis=' + encodeURIComponent(dispo.stadium)">
+                    <v-icon>mdi-share</v-icon>
+                  </v-btn>
+                </v-list-item-action>
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-container>
+
+        <v-footer absolute dark color="green darken-4">
+          <div style="text-align: right; width: 100%">
+            Made with ♥ by <a style="text-decoration: none; color: white; font-weight: bold;" href="https://github.com/noctalivan" target="_blank">noctalivan</a>
+          </div>
+        </v-footer>
+      </v-main>
+    </v-app>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+  <script>
+    const allStadiums = [
+        "Alain Mimoun",
+        "Amandiers",
+        "Atlantique",
+        "Aurelle de Paladines",
+        "Bertrand Dauvin",
+        "Bobigny",
+        "Candie",
+        "Carnot",
+        "Château des Rentiers",
+        "Cordelières",
+        "Courcelles",
+        "Croix Nivert",
+        "Docteurs Déjerine",
+        "Dunois",
+        "Edouard Pailleron",
+        "Elisabeth",
+        "Georges Carpentier",
+        "Henry de Montherlant",
+        "Henry de Montherlant",
+        "Jandelle",
+        "Jesse Owens",
+        "Jules Ladoumègue",
+        "La Faluère",
+        "Léo Lagrange",
+        "Louis Lumière",
+        "Max Rousié",
+        "Moureu - Baudricourt",
+        "NEUVE SAINT PIERRE",
+        "Niox",
+        "Paul Barruel",
+        "Philippe Auguste",
+        "Poissonniers",
+        "Poliveau",
+        "Porte de Bagnolet",
+        "Poterne des Peupliers",
+        "Reims - Asnières",
+        "Reims - Asnières",
+        "René et André Mourlon",
+        "Rigoulot - La Plaine",
+        "Rigoulot - La Plaine",
+        "Sablonnière",
+        "Sept arpents",
+        "Suzanne Lenglen",
+        "Thiéré",
+        "Valeyre",
+    ]
+
+    const allDays = [0,1,2,3,4,5,6].map(lag => moment().startOf('day').add(lag, 'days'))
+    const periods = ['morning', 'lunch', 'evening']
+
+    new Vue({
+      el: '#app',
+      vuetify: new Vuetify(),
+      data() {
+        return {
+          stadiums: [],
+          allStadiums,
+          isLoading: false,
+          dispos: null,
+          allWeekDays: allDays.map(d => d.format('dd')),
+          selectedDay: 0,
+          times: [8, 21]
+        }
+      },
+      methods: {
+        onRefresh() {
+          window.location.reload()
+        },
+        onSelectStadium(stadium) {
+          this.stadiums = [...this.stadiums, stadium]
+          window.localStorage.setItem('stadiums', JSON.stringify(this.stadiums))
+        },
+        onDeleteStadium(stadium) {
+          this.stadiums = this.stadiums.filter(s => s != stadium)
+          window.localStorage.setItem('stadiums', JSON.stringify(this.stadiums))
+        },
+        async onCompute() {
+          try {
+            this.isLoading = true
+            const { data } = await axios.post('http://localhost:3333', {
+              stadiums: this.stadiums
+            })
+
+            this.dispos = data
+          } catch (error) {
+            console.error(error)
+          } finally {
+            this.isLoading = false
+          }
+        },
+        getDispos(dayIndex) {
+          if(!this.dispos) {
+            return []
+          }
+
+          const freeDispos = []
+          this.dispos.forEach((stadium, i) => {
+            freeDispos.push(...stadium[dayIndex].data.filter(dispo => 
+              dispo.free.find(f => !!f) && dispo.time >= this.times[0] && dispo.time <= this.times[1]
+            ).map(d => ({stadium: this.stadiums[i], ...d})))
+          })
+
+          console.log({freeDispos})
+          return freeDispos
+        }
+      },
+      computed: {
+        selectedDispos() {
+          return this.getDispos(this.selectedDay)
+        },
+        daysDispos() {
+          [0,1,2,3,4,5,6].map(d => this.getDispos(d))
+        }
+      },
+      mounted() {
+        const loadedStadiums = window.localStorage.getItem('stadiums')
+        if(loadedStadiums) {
+          this.stadiums = JSON.parse(loadedStadiums)
+        } else {
+          this.stadiums = ['Carnot', 'Alain Mimoun']
+          window.localStorage.setItem('stadiums', JSON.stringify(this.stadiums))
+        }
+      }
+    })
+  </script>
+</body>
+</html>
