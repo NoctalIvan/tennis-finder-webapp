@@ -55,9 +55,10 @@
             />
           </v-card>
 
-          <v-btn block tile class="my-3" :disabled="isLoading || stadiums.length == 0" @click="onCompute">
-            {{!isLoading ? 'Search courts' : 'Loading...'}}
+          <v-btn v-if="!isLoading" block tile class="my-3" :disabled="stadiums.length == 0" @click="onCompute">
+            Search courts
           </v-btn>
+          <v-progress-linear :indeterminate="true" height="32" class="my-3" color="white" v-else></v-progress-linear>
 
           <v-card v-if="dispos" style="margin-bottom: 42px!important">
             <v-card-title>
@@ -190,7 +191,7 @@
         async onCompute() {
           try {
             this.isLoading = true
-            const { data } = await axios.post('http://localhost:3333', {
+            const { data } = await axios.post('https://tennis-finder.herokuapp.com/', {
               stadiums: this.stadiums
             })
 
